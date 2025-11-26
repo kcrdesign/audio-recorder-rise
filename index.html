@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        /* CSS for basic styling */
+        body {
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            background-color: #f8f8f8;
+            color: #333;
+        }
+        .container {
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+        }
+        #audioPlayback {
+            margin-top: 15px;
+            display: none; /* Initially hidden */
+        }
+        .status {
+            margin-bottom: 15px;
+            font-weight: bold;
+            min-height: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="status" id="statusMessage">Press 'Start Recording' to begin.</div>
+        <button id="recordButton">Start Recording</button>
+        <button id="stopButton" disabled>Stop Recording</button>
+        <audio id="audioPlayback" controls></audio>
+    </div>
+
+    <script>
+        // JavaScript for Media Recorder API
+        const recordButton = document.getElementById('recordButton');
+        const stopButton = document.getElementById('stopButton');
+        const audioPlayback = document.getElementById('audioPlayback');
+        const statusMessage = document.getElementById('statusMessage');
+
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioBlob;
+
+        // Function to start recording
+        async function startRecording() {
+            try {
+                // Request microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                
+                // Initialize Media Recorder
+                mediaRecorder = new MediaRecorder(stream);
+
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+
+                mediaRecorder.onstop = () => {
+                    // Combine chunks into a single Blob
+                    audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+
+                    // Set the audio element source and make it visible
+                    audioPlayback.src = audioUrl;
+                    audioPlayback.style.display = 'block';
+                    audioPlayback.controls = true;
+                    
+                    // Cleanup
+                    audioChunks = [];
+                    stream.getTracks().forEach(track => track.stop()); // Stop the microphone access
+
+                    // Update UI
+                    statusMessage.textContent = 'Recording finished. Use the audio player below to playback.';
+                    recordButton.disabled = false;
+                    stopButton.disabled = true;
+                };
+
+                // Start recording
+                mediaRecorder.start();
+
+                // Update UI
+                recordButton.disabled = true;
+                stopButton.disabled = false;
+                audioPlayback.style.display = 'none'; // Hide player during recording
+                statusMessage.textContent = 'Recording... click "Stop Recording" when done.';
+
+            } catch (error) {
+                console.error('Error accessing microphone:', error);
+                statusMessage.textContent = 'Error: Could not access microphone. Please check permissions.';
+                recordButton.disabled = false;
+                stopButton.disabled = true;
+            }
+        }
+
+        // Function to stop recording
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+            }
+        }
+
+        // Event Listeners
+        recordButton.addEventListener('click', startRecording);
+        stopButton.addEventListener('click', stopRecording);
+    </script>
+</body>
+</html>
